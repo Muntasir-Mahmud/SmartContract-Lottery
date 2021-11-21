@@ -3,11 +3,14 @@ pragma solidity ^0.6.6;
 
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
 
 
-contract Lottery is Ownable {
+contract Lottery is VRFConsumerBase, Ownable {
 
     address payable[] public players;
+    address public recentWinner;
+    uint256 public randomness;
     uint256 public usdEntryFee;
     AggregatorV3Interface internal ethUsdPriceFeed;
     enum LOTTERY_STATE {
@@ -16,11 +19,21 @@ contract Lottery is Ownable {
         CALCULATING_WINNER
     }
     LOTTERY_STATE public lottery_state;
+    uint256 public fee;
+    bytes32 public keyHash;
 
-    constructor(address _priceFeedAddress) public {
+    constructor(
+        address _priceFeedAddress,
+        address _vrfConsumerBase,
+        address _link,
+        uint256 _fee,
+        bytes32 _keyHash
+    ) public VRFConsumerBase(_vrfConsumerBase, link) {
         usdEntryFee = 50 * (10 ** 18); // unit: wei or 10^18
         ethUsdPriceFeed = AggregatorV3Interface(_priceFeedAddress); // Convert price to ETH
         lottery_state = LOTTERY_STATE.CLOSE;
+        fee = _fee;
+        keyHash = _keyHash;
     }
 
     function enter() public payable {
@@ -49,15 +62,30 @@ contract Lottery is Ownable {
 
     function endLottery() public onlyOwner {
         // not a good way to generate Random number
-        uint(
-            keccak256(
-                abi.encodePacked(
-                    nonce, // nonce is predictable, aka transaction number
-                    msg.sender, // is predictable
-                    block.difficulty, // can actually be manipulated by the miners
-                    block.timestamp // timestamp is predictable
-                )
-            )
-        ) % players.length;
+        // uint(
+        //     keccak256(
+        //         abi.encodePacked(
+        //             nonce, // nonce is predictable, aka transaction number
+        //             msg.sender, // is predictable
+        //             block.difficulty, // can actually be manipulated by the miners
+        //             block.timestamp // timestamp is predictable
+        //         )
+        //     )
+        // ) % players.length;
+        lottery_state = LOTTERY_STATE.CALCULATING_WINNER;
+        bytes32 requestId = requestRandomness(keyHash, fee);
+    }
+
+    function fullfillRandomness(bytes32 _requestId, uint256 _randomness) internal override {
+        require(lottery_state == LOTTERY_STATE.CALCULATING_WINNER, "You aren't ready yet");
+        require(_randomness > 0, "Random number does't found");
+        // Pick the Lottery winner
+        uint256 indexOfWinner = _randomness % players.length;
+        recentWinner = players[indexOfWinner];
+        recentWinner.transfer(address(this).balance);
+        // Reset
+        players = new address payable[](0);
+        LOTTERY_STATE = LOTTERY_STATE.CLOSE;
+        randomness = _randomness;
     }
 }
