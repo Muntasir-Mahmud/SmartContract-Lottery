@@ -2,7 +2,6 @@ from os import link
 
 from brownie import (Contract, LinkToken, MockV3Aggregator, VRFCoordinatorMock,
                      accounts, config, interface, network)
-from web3 import Web3
 
 FORKED_LOCAL_ENVIRONMENTS = ["mainnet-fork", "mainnet-fork-dev"]
 LOCAL_BLOCKCHAIN_ENVIRONMENT = ["development", "ganache-local"]
@@ -65,7 +64,7 @@ def deploy_mock():
     print("Deploying Mocks...")
     account = get_account()
     MockV3Aggregator.deploy(
-        DECIMALS, Web3.toWei(STARTING_PRICE, "ether"), {"from": account}
+        DECIMALS, STARTING_PRICE, {"from": account}
     )  # Here 18 is decimals and 2000*10^18 is price
     link_token = LinkToken.deploy({"from": account})
     VRFCoordinatorMock.deploy(link_token.address, {"from": account})
