@@ -79,10 +79,15 @@ contract Lottery is VRFConsumerBase, Ownable {
         emit RequestRandomness(requestId);
     }
 
-    function fulfillRandomness(bytes32 _requestId, uint256 _randomness) internal override {
-        require(lottery_state == LOTTERY_STATE.CALCULATING_WINNER, "You aren't ready yet");
-        require(_randomness > 0, "Random number does't found");
-        // Pick the Lottery winner
+    function fulfillRandomness(bytes32 _requestId, uint256 _randomness)
+        internal
+        override
+    {
+        require(
+            lottery_state == LOTTERY_STATE.CALCULATING_WINNER,
+            "You aren't there yet!"
+        );
+        require(_randomness > 0, "random not found");
         uint256 indexOfWinner = _randomness % players.length;
         recentWinner = players[indexOfWinner];
         recentWinner.transfer(address(this).balance);
@@ -90,5 +95,5 @@ contract Lottery is VRFConsumerBase, Ownable {
         players = new address payable[](0);
         lottery_state = LOTTERY_STATE.CLOSE;
         randomness = _randomness;
-    }
+    } 
 }
