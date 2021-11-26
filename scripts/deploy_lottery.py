@@ -19,8 +19,6 @@ def deploy_lottery():
         ),  # default False
     )
     print("Deployed lottery!!!")
-    print(lottery.getEntranceFee())
-    print(lottery.usdEntryFee())
     return lottery
 
 
